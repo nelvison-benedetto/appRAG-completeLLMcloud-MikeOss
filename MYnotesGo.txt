@@ -1,0 +1,38 @@
+
+BACKEND fatto in ExpressJs (NodeJs sotto), FRONTEND fatto in nextjs
+
+-package.json: 
+libreoffice-convert : genera link temp x aws S3
+multer: upload docs
+pdfjs-dist: estrae testo da pdf
+mammoth: .docx → testo
+docx: per creare file .docx
+
+🔥fast-diff: confronto tra testi x differenze
+fast-xml-parser: leggere xml velocemente
+jszip: per creare/leggere i Zip file
+libreoffice-convert: conversione docs PDF ↔ DOCX ↔ altri formati, DEVI INSTALLARE SU PC(o sul server) LibreOffice🔥🔥 best x local-hosting0 !!
+resend: inviare email (login, notifiche, ecc.)
+
+-Nixpacks.toml: durante il deploy dice come costruire ambiente server, nixpacks divide il processo di deploy in setup(installa dipendenze di sistema)->install(installa npm packs)->build(compila il prj)->start(avvia il server).
+nixPkgs = ["libreoffice"]  significa installa questi packs dal sistema linux, 'libreoffice' è la open-source suite x Word (Writer)/Excel (Calc)/PowerPoint (Impress).
+LO DEVO FARE XK uso plugin 'libreoffice-convert' che ha bisogno del programma reale installato sul sistema!
+quindi se non installi LibreOffice sulla macchine, le conversioni che fa plugin 'libreoffice-convert' falliscono!
+
+-   const proj = project as {
+        id: string;
+        user_id: string;
+        shared_with: string[] | null;
+    };
+e.g.project arriva da supabase e ts lo vede come unknown/any/Record<string, unknown>, pero cosi dici a ts di assumere che 'project' abbia questa struttura (quindi ora ts ti lascia fare e.g.project.user_id)
+- ||(or logico, e.g. se il primo non c'è prendi il secondo) e |(or bitwise, e.g. 5 | 3)
+-  content: ArrayBuffer  //array di byte del file da caricare
+      Body: Buffer.from(content),  //🔥Buffer.from() converte un ArrayBuffer in un Buffer, che è il formato richiesto da PutObjectCommand per il corpo del file
+- per donwload di files (e.g. pdf) dal backend NON usare SSE(quello è perfetto x stream di tokens), ma usa invece conversione in bytes
+e.g.
+    const bytes = await response.Body.transformToByteArray();  //transformToByteArray() trasforma in array di bytes, piu facile x js da gestire
+    return bytes.buffer as ArrayBuffer;  //ritorna solo la parte di ArrayBuffer dell'oggetto bytes, che è un Uint8Array (un tipo di array di byte), e lo casta come ArrayBuffer
+
+🔥🔥-LibreOffice installato sul pc/server (best x local-hosting), x fare upload/conversions di Pdf/.docx
+
+
