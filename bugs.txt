@@ -1,0 +1,111 @@
+---
+  Bug e inconsistenze nel progetto
+
+  Bug Critici (causano errori a runtime)
+
+  ---
+  Bug 1 — streamChatWithTools restituisce undefined per OpenAI
+  backend/src/lib/llm/index.ts:15
+
+  else if (provider === "openai") return   // ← manca: streamOpenAI(params)
+
+  Il return è troncato — non chiama nulla. Poiché il progetto usa solo modelli OpenAI, ogni chiamata di chat streamed restituisce
+  undefined anziché un StreamChatResult. Tutti i messaggi inviati dall'utente vanno in errore silenzioso.
+
+  ---
+  Bug 2 — completeText cade su Gemini per modelli OpenAI
+  backend/src/lib/llm/index.ts:27-29
+
+  if (provider === "claude") return completeClaudeText(params);
+  return completeGeminiText(params);  // ← OpenAI finisce qui
+
+  Nessun case per "openai". I modelli gpt-4.1-nano usati per generazione titoli e tabular review finiscono per chiamare
+  l'implementazione Gemini, che fallisce senza una chiave Gemini configurata.
+
+  ---
+  Bug 3 — streamOpenAI ignora params.model e params.apiKeys
+  backend/src/lib/llm/openai.ts:32-33
+
+  const llmBase = await get_llm();   // creato ma mai usato (dead code)
+  const llm = new ChatOpenAI;        // nessun argomento: no model, no API key
+
+  - llmBase viene creato e poi completamente ignorato.
+  - llm viene istanziato senza modello né chiave API — usa i default d'ambiente invece del modello scelto dall'utente e della sua
+  chiave personale.
+
+  ---
+  Bug 4 — I tool non vengono mai passati all'LLM in streamOpenAI
+  backend/src/lib/llm/openai.ts
+
+  toOpenAITools viene importato ma mai chiamato. L'LLM viene invocato senza nessun tool bound, quindi anyRes.tool_calls è sempre
+  vuoto. L'AI non può mai chiamare read_document, generate_docx, edit_document, ecc.
+
+  ---
+  Inconsistenze Frontend/Backend
+
+  ---
+  Inconsistenza 5 — Il frontend mostra solo Claude e Gemini, mai OpenAI
+  frontend/src/app/components/assistant/ModelToggle.tsx:21-26
+
+  export const MODELS: ModelOption[] = [
+      { id: "claude-opus-4-7", ... },
+      { id: "claude-sonnet-4-6", ... },
+      { id: "gemini-3.1-pro-preview", ... },
+      { id: "gemini-3-flash-preview", ... },
+      // ← nessun modello OpenAI
+  ];
+
+  Il backend usa gpt-4.1-mini come default, ma nessuno di questi model ID compare nel frontend. Anche modelAvailability.ts:3
+  dichiara ModelProvider = "claude" | "gemini" senza OpenAI, e isModelAvailable controlla solo claudeApiKey / geminiApiKey: la
+  chiave OpenAI non fa mai sbloccare nessun modello.
+
+  ---
+  Inconsistenza 6 — resolveTitleModel restituisce sempre un modello OpenAI
+  backend/src/lib/userSettings.ts:19-24
+
+  function resolveTitleModel(apiKeys: UserApiKeys): string {
+      if (apiKeys.openai?.trim()) return DEFAULT_TITLE_MODEL;   // gpt-4.1-nano
+      if (apiKeys.gemini?.trim()) return DEFAULT_TITLE_MODEL;   // gpt-4.1-nano anche qui!
+      if (apiKeys.claude?.trim()) return "claude-haiku-4-5";
+      return DEFAULT_TITLE_MODEL;
+  }
+
+  Se l'utente ha solo una chiave Gemini, title_model viene impostato a gpt-4.1-nano (OpenAI), che poi fallirà senza una chiave
+  OpenAI.
+
+  ---
+  Inconsistenza 7 — settings.ts / config.yaml è sostanzialmente dead code
+  backend/src/settings.ts
+
+  get_llm(), getMainModel(), getMidModel() leggono da config.yaml, ma nelle route di chat e tabular review il modello viene preso
+  da getUserModelSettings() che legge dal database Supabase. L'unico posto dove get_llm() viene chiamato è openai.ts, dove il
+  risultato viene subito ignorato (vedi Bug 3).
+
+  ---
+  Riepilogo priorità
+
+  ┌─────┬──────────┬────────────────────────────────────────┬─────────────────────────────────────────────┐
+  │  #  │ Severità │                  File                  │                 Descrizione                 │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 1   │ Critico  │ llm/index.ts:15                        │ return troncato → tutti i chat falliscono   │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 2   │ Critico  │ llm/index.ts:28                        │ OpenAI models → chiama Gemini               │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 3   │ Alto     │ llm/openai.ts:33                       │ LLM senza model/apiKey                      │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 4   │ Alto     │ llm/openai.ts                          │ Tools mai passati → AI cieca agli strumenti │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 5   │ Alto     │ ModelToggle.tsx + modelAvailability.ts │ OpenAI invisibile nel frontend              │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 6   │ Medio    │ userSettings.ts:21                     │ Gemini key → assegna modello OpenAI         │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 4   │ Alto     │ llm/openai.ts                          │ Tools mai passati → AI cieca agli strumenti │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 5   │ Alto     │ ModelToggle.tsx + modelAvailability.ts │ OpenAI invisibile nel frontend              │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 6   │ Medio    │ userSettings.ts:21                     │ Gemini key → assegna modello OpenAI         │
+  ├─────┼──────────┼────────────────────────────────────────┼─────────────────────────────────────────────┤
+  │ 7   │ Basso    │ settings.ts                            │ config.yaml mai usato in produzione         │
+  └─────┴──────────┴────────────────────────────────────────┴─────────────────────────────────────────────┘
+
+  I bug 1–4 sono tutti nel layer LLM del backend e si traducono in: nessuna risposta AI funzionante con modelli OpenAI.
