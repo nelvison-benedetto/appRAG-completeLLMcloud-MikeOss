@@ -44,6 +44,7 @@ export default function ModelsAndApiKeysPage() {
                             apiKeys={{
                                 claudeApiKey: profile?.claudeApiKey ?? null,
                                 geminiApiKey: profile?.geminiApiKey ?? null,
+                                openaiApiKey: profile?.openaiApiKey ?? null,
                             }}
                             onChange={(id) =>
                                 updateModelPreference("tabularModel", id)
@@ -67,10 +68,19 @@ export default function ModelsAndApiKeysPage() {
                 </p>
                 <p className="text-xs text-gray-400 mb-4 max-w-xl">
                     Title generation automatically routes to the cheapest model
-                    of whichever provider you&rsquo;ve configured (Gemini Flash
-                    Lite if a Gemini key is set, otherwise Claude Haiku).
+                    of whichever provider you&rsquo;ve configured (GPT-4.1 Nano
+                    if an OpenAI key is set, Gemini Flash Lite if a Gemini key
+                    is set, otherwise Claude Haiku).
                 </p>
                 <div className="space-y-4 max-w-xl">
+                    <ApiKeyField
+                        label="OpenAI API Key"
+                        placeholder="sk-…"
+                        initialValue={profile?.openaiApiKey ?? ""}
+                        onSave={(value) =>
+                            updateApiKey("openai", value.trim() || null)
+                        }
+                    />
                     <ApiKeyField
                         label="Anthropic (Claude) API Key"
                         placeholder="sk-ant-…"
@@ -100,12 +110,12 @@ function TabularModelDropdown({
 }: {
     value: string;
     onChange: (id: string) => void;
-    apiKeys: { claudeApiKey: string | null; geminiApiKey: string | null };
+    apiKeys: { claudeApiKey: string | null; geminiApiKey: string | null; openaiApiKey: string | null };
 }) {
     const [isOpen, setIsOpen] = useState(false);
     const selected = MODELS.find((m) => m.id === value);
     const selectedAvailable = isModelAvailable(value, apiKeys);
-    const groups: ("Anthropic" | "Google")[] = ["Anthropic", "Google"];
+    const groups: ("Anthropic" | "Google" | "OpenAI")[] = ["Anthropic", "Google", "OpenAI"];
 
     return (
         <DropdownMenu onOpenChange={setIsOpen}>
@@ -154,7 +164,7 @@ function TabularModelDropdown({
                                         onSelect={() => onChange(m.id)}
                                         title={
                                             !available
-                                                ? `Add a ${provider === "claude" ? "Claude" : "Gemini"} API key to use this model`
+                                                ? `Add a ${provider === "claude" ? "Claude" : provider === "openai" ? "OpenAI" : "Gemini"} API key to use this model`
                                                 : undefined
                                         }
                                     >

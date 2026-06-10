@@ -109,3 +109,45 @@
   └─────┴──────────┴────────────────────────────────────────┴─────────────────────────────────────────────┘
 
   I bug 1–4 sono tutti nel layer LLM del backend e si traducono in: nessuna risposta AI funzionante con modelli OpenAI.
+
+
+  #########################################
+
+
+  Tutto corretto. Ora salvo una memoria del progetto e faccio un riepilogo delle correzioni applicate.
+
+  Read 1 file, recalled 1 memory, wrote 2 memories (ctrl+o to expand)
+
+● Tutte le correzioni sono state applicate. Ecco il riepilogo per bug:
+
+  ---
+  Bug 1 — llm/index.ts:15 (Critico)
+
+  return troncato → ora chiama return streamOpenAI(params).
+
+  Bug 2 — llm/index.ts:28 (Critico)
+
+  completeText senza case OpenAI → aggiunto if (provider === "openai") return completeOpenAIText(params).
+
+  Bug 3 — llm/openai.ts:33 (Alto)
+
+  ChatOpenAI senza model/apiKey → ora usa { model: params.model, apiKey: params.apiKeys?.openai }. Rimosso il dead code llmBase e l'import
+  inutile di get_llm.
+
+  Bug 4 — llm/openai.ts (Alto)
+
+  Tools mai passati → toOpenAITools(tools) chiamato, llm.bindTools(openAITools) applicato; llmWithTools.invoke() usato al posto di
+  llm.invoke().
+
+  Funzione mancante — completeOpenAIText
+
+  Era importata ma non esisteva in openai.ts → aggiunta.
+
+  Bug 5 — ModelToggle.tsx + modelAvailability.ts (Alto)
+
+  OpenAI invisibile nel frontend → aggiunto gpt-4.1-mini al dropdown, gruppo "OpenAI" in tutto il layer frontend, openaiApiKey in
+  UserProfile, UserProfileContext, e tutti i componenti che costruiscono apiKeys. Campo API key OpenAI aggiunto nella pagina Account.
+
+  Bug 6 — userSettings.ts:21 (Medio)
+
+  Gemini key → restituiva modello OpenAI → ora restituisce "gemini-3.1-flash-lite-preview" se solo la chiave Gemini è configurata.

@@ -17,8 +17,8 @@ export type UserModelSettings = {
 // available, otherwise Claude Haiku. With no user keys set, defaults to Gemini
 // (the dev-mode env fallback).
 function resolveTitleModel(apiKeys: UserApiKeys): string {
-    if (apiKeys.openai?.trim()) return DEFAULT_TITLE_MODEL;  //io uso openai!
-    if (apiKeys.gemini?.trim()) return DEFAULT_TITLE_MODEL;
+    if (apiKeys.openai?.trim()) return DEFAULT_TITLE_MODEL;
+    if (apiKeys.gemini?.trim()) return "gemini-3.1-flash-lite-preview";
     if (apiKeys.claude?.trim()) return "claude-haiku-4-5";
     return DEFAULT_TITLE_MODEL;
 }

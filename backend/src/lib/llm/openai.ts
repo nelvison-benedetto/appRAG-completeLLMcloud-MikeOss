@@ -1,15 +1,12 @@
-import * as path from "path";   //x path building
-import * as fs from "fs";   //x leggere read filesystem
 import type {
     StreamChatParams,
     StreamChatResult,
     NormalizedToolCall,
     NormalizedToolResult,
 } from "./types";
-import {toOpenAITools} from "./tools";   //ur custom
-import { ChatOpenAI } from "@langchain/openai";   //il client di langchain per openai
+import { toOpenAITools } from "./tools";
+import { ChatOpenAI } from "@langchain/openai";
 import { AIMessage, HumanMessage, BaseMessage } from "@langchain/core/messages";
-import { get_llm } from "../../settings";   //ur custom
 
 const MAX_ITER = 10;
 
@@ -29,12 +26,16 @@ export async function streamOpenAI(params: StreamChatParams) : Promise<StreamCha
         runTools,
         maxIterations = MAX_ITER,
     } = params;
-    const llmBase = await get_llm();
-    const llm = new ChatOpenAI;
-    const lcMessages = toLangChainMessages(inputMessages);  //converted ok
+    const llm = new ChatOpenAI({
+        model: params.model,
+        apiKey: params.apiKeys?.openai ?? undefined,
+    });
+    const openAITools = toOpenAITools(tools);
+    const llmWithTools = openAITools.length ? llm.bindTools(openAITools) : llm;
+    const lcMessages = toLangChainMessages(inputMessages);
     let fullText = "";
     for (let i = 0; i<maxIterations; i++){
-        const res = await llm.invoke([
+        const res = await llmWithTools.invoke([
             ...(systemPrompt ? [{ role: "system", content: systemPrompt } as any] : []),  //se presente aggiunge e.g. { role: "system", content: "sei un'avvocato" }
             ...lcMessages,
         ]);
@@ -89,6 +90,28 @@ export async function streamOpenAI(params: StreamChatParams) : Promise<StreamCha
     }
     return {fullText};
 };
+
+export async function completeOpenAIText(params: {
+    model: string;
+    systemPrompt?: string;
+    user: string;
+    maxTokens?: number;
+    apiKeys?: { openai?: string | null };
+}): Promise<string> {
+    const llm = new ChatOpenAI({
+        model: params.model,
+        apiKey: params.apiKeys?.openai ?? undefined,
+        maxTokens: params.maxTokens ?? 512,
+    });
+    const messages = [
+        ...(params.systemPrompt
+            ? [{ role: "system" as const, content: params.systemPrompt }]
+            : []),
+        { role: "user" as const, content: params.user },
+    ];
+    const res = await llm.invoke(messages);
+    return res.content?.toString?.() ?? "";
+}
 
 
 
